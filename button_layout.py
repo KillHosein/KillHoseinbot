@@ -359,6 +359,18 @@ class ProfessionalButtonLayout:
             KeyboardButton("❓ راهنما و پشتیبانی")
         ])
         
+        # New buttons row (2 columns)
+        keyboard.append([
+            KeyboardButton("📦 محصولات"),
+            KeyboardButton("💳 کیف پول")
+        ])
+        
+        # New buttons row 2 (2 columns)
+        keyboard.append([
+            KeyboardButton("📝 تراکنش‌ها"),
+            KeyboardButton("📞 تماس با ما")
+        ])
+        
         # Admin panel (only for admins)
         if is_admin:
             keyboard.append([

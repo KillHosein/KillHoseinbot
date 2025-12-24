@@ -1701,7 +1701,22 @@ class VPNBot:
             await self.show_help(update, context)
             return
         elif text == "⚙️ پنل مدیریت":
-            if self.db.is_admin(user_id):
+            # Check admin status (check both config and DB)
+            is_admin_config = (user_id == self.bot_config['admin_id'])
+            is_admin_db = self.db.is_admin(user_id)
+            
+            if is_admin_config or is_admin_db:
+                # Sync DB if needed (if user is admin in config but not in DB)
+                if is_admin_config and not is_admin_db:
+                    try:
+                        with self.db.get_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute('UPDATE users SET is_admin = 1 WHERE telegram_id = %s', (user_id,))
+                            conn.commit()
+                            logger.info(f"Updated is_admin flag for user {user_id} in database (triggered by menu command)")
+                    except Exception as e:
+                        logger.error(f"Error updating is_admin flag: {e}")
+                
                 await self.handle_admin_panel(update, context)
             return
         
@@ -6312,13 +6327,30 @@ class VPNBot:
             await query.answer()
         
         user_id = update.effective_user.id
-        if not self.db.is_admin(user_id):
+        
+        # Check admin status (check both config and DB)
+        is_admin_config = (user_id == self.bot_config['admin_id'])
+        is_admin_db = self.db.is_admin(user_id)
+        
+        if not (is_admin_config or is_admin_db):
             error_text = "❌ دسترسی غیرمجاز."
             if query:
                 await query.edit_message_text(error_text)
             else:
                 await update.message.reply_text(error_text)
             return
+
+        # Sync DB if needed (if user is admin in config but not in DB)
+        if is_admin_config and not is_admin_db:
+            try:
+                with self.db.get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('UPDATE users SET is_admin = 1 WHERE telegram_id = %s', (user_id,))
+                    conn.commit()
+                    logger.info(f"Updated is_admin flag for user {user_id} in database (triggered by handle_admin_panel)")
+            except Exception as e:
+                logger.error(f"Error updating is_admin flag: {e}")
+
 
         try:
             message = """
