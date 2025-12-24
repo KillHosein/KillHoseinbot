@@ -12,7 +12,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_DIR=$(pwd)
+PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SERVICE_BOT="vpn-bot"
 SERVICE_WEB="vpn-webapp"
 GITHUB_REPO="https://github.com/KillHosein/KillHoseinbot"
@@ -141,6 +141,7 @@ update_bot() {
 
 delete_bot() {
     print_header
+    cd "$PROJECT_DIR" || return
     echo -e "${RED}>> Delete / Uninstall Bot${NC}"
     echo -e "${RED}WARNING: This will stop services, remove them, and delete files!${NC}"
     echo ""
