@@ -5127,6 +5127,10 @@ def admin_menu_layout():
         {'key': 'help', 'text': '❓ راهنما و پشتیبانی', 'callback': 'help', 'type': 'callback', 'description': 'راهنما و پشتیبانی کاربران'},
         {'key': 'webapp', 'text': '🌐 ورود به وب اپلیکیشن', 'callback': 'webapp', 'type': 'webapp', 'description': 'ورود به وب اپلیکیشن ربات'},
         {'key': 'admin_panel', 'text': '⚙️ پنل مدیریت', 'callback': 'admin_panel', 'type': 'callback', 'description': 'ورود به پنل مدیریت (فقط برای ادمین)'},
+        {'key': 'products', 'text': '📦 محصولات', 'callback': 'products', 'type': 'callback', 'description': 'نمایش لیست محصولات'},
+        {'key': 'wallet', 'text': '💳 کیف پول', 'callback': 'wallet', 'type': 'callback', 'description': 'مدیریت کیف پول و افزایش موجودی'},
+        {'key': 'transactions', 'text': '📝 تراکنش‌ها', 'callback': 'transactions', 'type': 'callback', 'description': 'مشاهده لیست تراکنش‌های اخیر'},
+        {'key': 'contact_us', 'text': '📞 تماس با ما', 'callback': 'contact_us', 'type': 'callback', 'description': 'ارتباط با پشتیبانی'},
     ]
     
     # Update webapp button URL if needed
