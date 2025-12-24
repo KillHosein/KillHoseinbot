@@ -17,11 +17,12 @@ from telegram import Bot
 from database_backup_system import DatabaseBackupSystem
 from database_optimization import create_database_indexes
 from professional_database import ProfessionalDatabaseManager
+from settings_manager import SettingsManager
 
 logger = logging.getLogger(__name__)
 
 class SystemManager:
-    def __init__(self, bot: Bot, db_manager: ProfessionalDatabaseManager, bot_config: Dict):
+    def __init__(self, bot: Bot, db_manager: ProfessionalDatabaseManager, bot_config: Dict, settings_manager: SettingsManager = None):
         """
         Initialize System Manager
         
@@ -29,19 +30,15 @@ class SystemManager:
             bot: Telegram Bot instance
             db_manager: Database manager instance
             bot_config: Bot configuration dict
+            settings_manager: Settings manager instance
         """
         self.bot = bot
         self.db_manager = db_manager
         self.bot_config = bot_config
-        self.backup_system = DatabaseBackupSystem(bot, bot_config, {}) # db_config not needed for create_and_send_backup if using db_manager internally? 
-        # Actually DatabaseBackupSystem needs db_config to connect for mysqldump or python backup.
-        # We'll pass empty dict for now and rely on it finding credentials from .env or we need to pass real config.
-        # Let's check how DatabaseBackupSystem is initialized in telegram_bot.py.
-        # It seems it's not initialized there in the snippet I saw, but it's used. 
-        # Wait, I saw DatabaseBackupSystem in file list but not in telegram_bot.py main().
-        # I'll try to load config from config.py if needed.
+        self.settings_manager = settings_manager or SettingsManager(db_manager)
+        
         from config import MYSQL_CONFIG
-        self.backup_system = DatabaseBackupSystem(bot, bot_config, MYSQL_CONFIG)
+        self.backup_system = DatabaseBackupSystem(bot, bot_config, MYSQL_CONFIG, self.settings_manager)
 
     async def update_system(self) -> Tuple[bool, str]:
         """

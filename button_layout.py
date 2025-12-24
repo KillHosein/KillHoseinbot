@@ -859,6 +859,10 @@ class ProfessionalButtonLayout:
                 InlineKeyboardButton("💾 بکاپ دیتابیس", callback_data="sys_backup"),
                 InlineKeyboardButton("♻️ بازیابی بکاپ", callback_data="sys_restore")
             ],
+            # Row 1.5: Backup Settings
+            [
+                InlineKeyboardButton("⏱️ تنظیم زمان‌بندی بکاپ", callback_data="backup_settings")
+            ],
             # Row 2: Status & Logs
             [
                 InlineKeyboardButton("📊 وضعیت سیستم", callback_data="sys_status"),
@@ -871,6 +875,36 @@ class ProfessionalButtonLayout:
             # Row 4: Back
             [
                 InlineKeyboardButton("🔙 بازگشت", callback_data="admin_panel")
+            ]
+        ]
+        return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def create_backup_settings_menu(current_interval_minutes: int = 60) -> InlineKeyboardMarkup:
+        """Create backup settings menu
+        
+        Args:
+            current_interval_minutes: Current backup interval in minutes
+        """
+        
+        # Calculate hours for display if it's a clean hour
+        current_display = f"{current_interval_minutes} دقیقه"
+        if current_interval_minutes >= 60 and current_interval_minutes % 60 == 0:
+            current_display = f"{current_interval_minutes // 60} ساعت"
+            
+        keyboard = [
+            # Info row
+            [
+                InlineKeyboardButton(f"⏱️ زمان‌بندی فعلی: هر {current_display}", callback_data="noop")
+            ],
+            # Setting buttons
+            [
+                InlineKeyboardButton("تنظیم بر اساس دقیقه 🕐", callback_data="set_backup_interval_min"),
+                InlineKeyboardButton("تنظیم بر اساس ساعت 🕙", callback_data="set_backup_interval_hour")
+            ],
+            # Back
+            [
+                InlineKeyboardButton("🔙 بازگشت", callback_data="system_settings")
             ]
         ]
         return InlineKeyboardMarkup(keyboard)

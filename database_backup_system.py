@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class DatabaseBackupSystem:
     """Automated database backup system"""
     
-    def __init__(self, bot: Bot, bot_config: Dict, db_config: Dict):
+    def __init__(self, bot: Bot, bot_config: Dict, db_config: Dict, settings_manager=None):
         """
         Initialize Database Backup System
         
@@ -31,10 +31,12 @@ class DatabaseBackupSystem:
             bot: Telegram Bot instance
             bot_config: Bot configuration dict (must contain 'reports_channel_id')
             db_config: Database configuration dict (must contain connection details)
+            settings_manager: SettingsManager instance for dynamic configuration
         """
         self.bot = bot
         self.bot_config = bot_config
         self.db_config = db_config
+        self.settings_manager = settings_manager
         self.channel_id = bot_config.get('reports_channel_id')
         self.bot_username = bot_config.get('bot_username', 'Unknown')
         self.bot_name = bot_config.get('bot_name', bot_config.get('bot_username', 'Unknown'))
@@ -576,28 +578,57 @@ class DatabaseBackupSystem:
                 pass
             return None
     
-    async def start_auto_backup(self, interval_hours: int = 1):
+    async def start_auto_backup(self, default_interval_hours: int = 1):
         """
         Start automatic backup scheduler
         
         Args:
-            interval_hours: Hours between backups (default: 1)
+            default_interval_hours: Default hours between backups (default: 1)
         """
         if not self.enabled:
             logger.warning(f"⚠️ Backup system disabled for bot '{self.bot_name}' - not starting scheduler")
             return
         
-        logger.info(f"🚀 Starting automatic backup scheduler for bot '{self.bot_name}' (interval: {interval_hours} hours)")
+        logger.info(f"🚀 Starting automatic backup scheduler for bot '{self.bot_name}'")
         
-        interval_seconds = interval_hours * 3600
+        # Initialize last backup time to now (so we wait one interval before first backup)
+        # Or should we backup immediately on start? Usually waiting is better to avoid boot storm.
+        last_backup_time = datetime.now()
         
         while True:
             try:
-                await self.create_and_send_backup()
-                logger.info(f"⏰ Next backup scheduled in {interval_hours} hour(s)")
-                await asyncio.sleep(interval_seconds)
+                # Determine current interval preference
+                interval_minutes = default_interval_hours * 60
+                
+                if self.settings_manager:
+                    # Try to get from DB setting 'backup_interval_minutes'
+                    setting_mins = self.settings_manager.get_setting('backup_interval_minutes')
+                    if setting_mins is not None:
+                        try:
+                            interval_minutes = int(setting_mins)
+                        except ValueError:
+                            pass
+                
+                # Ensure minimum interval of 5 minutes to prevent spam
+                if interval_minutes < 5:
+                    interval_minutes = 5
+                
+                # Check if it's time for backup
+                now = datetime.now()
+                time_diff_minutes = (now - last_backup_time).total_seconds() / 60
+                
+                if time_diff_minutes >= interval_minutes:
+                    logger.info(f"⏰ Performing scheduled backup (Interval: {interval_minutes} mins)")
+                    await self.create_and_send_backup()
+                    last_backup_time = datetime.now()
+                    logger.info(f"✅ Next backup check in 1 minute (Scheduled in {interval_minutes} mins)")
+                
+                # Sleep for 1 minute before checking again
+                await asyncio.sleep(60)
+                
             except Exception as e:
                 logger.error(f"❌ Error in backup scheduler: {e}")
+                await asyncio.sleep(60)
                 import traceback
                 logger.error(traceback.format_exc())
                 # Wait before retrying

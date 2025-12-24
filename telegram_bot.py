@@ -1028,6 +1028,12 @@ class VPNBot:
                 await self.handle_edit_setting(update, context, key)
             elif data == "system_logs":
                 await self.handle_system_action(update, context, "logs")
+            elif data == "backup_settings":
+                await self.handle_backup_settings(update, context)
+            elif data == "set_backup_interval_min":
+                await self.handle_set_backup_interval(update, context, "minute")
+            elif data == "set_backup_interval_hour":
+                await self.handle_set_backup_interval(update, context, "hour")
             elif data.startswith("sys_"):
                 await self.handle_system_action(update, context, data.split("_")[1])
             elif data == "admin_stats":
@@ -1561,6 +1567,112 @@ class VPNBot:
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
+
+    async def handle_backup_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Show backup settings menu"""
+        query = update.callback_query
+        await query.answer()
+        
+        user_id = update.effective_user.id
+        if not self.db.is_admin(user_id):
+            await query.edit_message_text("❌ دسترسی غیرمجاز.")
+            return
+
+        # Get current setting (default 60 minutes)
+        current_interval = 60
+        if self.settings_manager:
+            setting_val = self.settings_manager.get_setting('backup_interval_minutes')
+            if setting_val:
+                try:
+                    current_interval = int(setting_val)
+                except:
+                    pass
+        
+        reply_markup = ButtonLayout.create_backup_settings_menu(current_interval)
+        
+        await query.edit_message_text(
+            "⏱️ **تنظیمات زمان‌بندی بکاپ خودکار**\n\n"
+            "شما می‌توانید فاصله زمانی بین بکاپ‌های خودکار را تنظیم کنید.\n"
+            "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def handle_set_backup_interval(self, update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str):
+        """Handle backup interval set request"""
+        query = update.callback_query
+        await query.answer()
+        
+        # Save mode to context
+        context.user_data['awaiting_backup_interval'] = mode # 'minute' or 'hour'
+        
+        unit_text = "دقیقه" if mode == "minute" else "ساعت"
+        example = "30" if mode == "minute" else "1"
+        
+        keyboard = [[InlineKeyboardButton("🔙 لغو", callback_data="backup_settings")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"✍️ لطفاً بازه زمانی مورد نظر را به **{unit_text}** وارد کنید:\n\n"
+            f"مثال: `{example}`",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def handle_backup_interval_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle backup interval input"""
+        text = update.message.text.strip()
+        user_id = update.effective_user.id
+        
+        mode = context.user_data.get('awaiting_backup_interval')
+        if not mode:
+            return
+            
+        try:
+            value = int(text)
+            if value <= 0:
+                raise ValueError("Value must be positive")
+                
+            # Convert to minutes
+            minutes = value if mode == "minute" else value * 60
+            
+            # Enforce minimum 5 minutes
+            if minutes < 5:
+                await update.message.reply_text("❌ حداقل زمان بکاپ ۵ دقیقه است.")
+                return
+                
+            # Save setting
+            if self.settings_manager:
+                self.settings_manager.set_setting(
+                    'backup_interval_minutes', 
+                    minutes, 
+                    description=f"Backup interval in minutes (set by {user_id})",
+                    user_id=user_id
+                )
+                
+            # Clear state
+            del context.user_data['awaiting_backup_interval']
+            
+            unit_display = f"{value} دقیقه" if mode == "minute" else f"{value} ساعت"
+            
+            await update.message.reply_text(
+                f"✅ زمان‌بندی بکاپ خودکار با موفقیت به هر **{unit_display}** تغییر یافت.",
+                reply_markup=ButtonLayout.create_back_button("system_settings"),
+                parse_mode='Markdown'
+            )
+            
+            # Show updated menu
+            current_interval = minutes
+            reply_markup = ButtonLayout.create_backup_settings_menu(current_interval)
+            
+            await update.message.reply_text(
+                "تنظیمات جدید اعمال شد:",
+                reply_markup=reply_markup
+            )
+            
+        except ValueError:
+            await update.message.reply_text("❌ لطفاً یک عدد معتبر وارد کنید.")
+
     
     async def create_client_prompt(self, update: Update, context: ContextTypes.DEFAULT_TYPE, inbound_id: int):
         """Prompt user for client name"""
@@ -1750,6 +1862,11 @@ class VPNBot:
         # Check if admin is entering admin ID to add
         if context.user_data.get('awaiting_admin_id', False):
             await self.handle_add_admin_id(update, context)
+            return
+            
+        # Check if admin is setting backup interval
+        if context.user_data.get('awaiting_backup_interval'):
+            await self.handle_backup_interval_input(update, context)
             return
         
         # Check if admin is entering user ID for info
@@ -16534,7 +16651,7 @@ def main():
     # CRITICAL: Pass bot_config to ReportingSystem to ensure reports go to correct channel
     bot.reporting_system = ReportingSystem(telegram_bot, bot_config=bot.bot_config)
     bot.statistics_system = StatisticsSystem(bot.db, bot.admin_manager)
-    bot.system_manager = SystemManager(telegram_bot, bot.db, bot.bot_config)
+    bot.system_manager = SystemManager(telegram_bot, bot.db, bot.bot_config, bot.settings_manager)
     
     # Create application
     application = Application.builder().token(BOT_CONFIG['token']).request(request).build()
