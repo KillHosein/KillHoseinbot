@@ -6372,7 +6372,8 @@ class VPNBot:
             """
             
             # Use the centralized button layout
-            reply_markup = ButtonLayout.create_admin_panel(bot_name=self.bot_username)
+            webapp_url = self.bot_config.get('webapp_url')
+            reply_markup = ButtonLayout.create_admin_panel(webapp_url=webapp_url, bot_name=self.bot_username)
             
             if query:
                 await query.edit_message_text(message, reply_markup=reply_markup, parse_mode='Markdown')
