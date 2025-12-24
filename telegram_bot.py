@@ -2289,7 +2289,12 @@ class VPNBot:
         # Get user data
         user_data = self.db.get_user(user_id)
         # Check if user is admin - check both database and config
-        is_admin_by_config = (user_id == self.bot_config['admin_id'])
+        try:
+            config_admin_id = int(self.bot_config['admin_id'])
+        except (ValueError, TypeError):
+            config_admin_id = self.bot_config['admin_id']
+            
+        is_admin_by_config = (user_id == config_admin_id) or (str(user_id) == str(self.bot_config['admin_id']))
         is_admin_by_db = self.db.is_admin(user_id)
         is_admin = is_admin_by_config or is_admin_by_db
         

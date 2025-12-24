@@ -302,7 +302,7 @@ class ProfessionalButtonLayout:
             
             if menu_buttons and len(menu_buttons) > 0:
                 # Ensure new buttons are present even if DB is stale
-                existing_texts = set(b.get('button_text', '') for b in menu_buttons)
+                existing_texts = set(str(b.get('button_text', '')).strip() for b in menu_buttons)
                 
                 # Required buttons map: text -> key
                 required_buttons = [
@@ -332,7 +332,12 @@ class ProfessionalButtonLayout:
                             next_row += 1
                             
                 # Also ensure Admin Panel is present if admin
-                if is_admin and "⚙️ پنل مدیریت" not in existing_texts:
+                # Check for exact text or common variations
+                admin_button_texts = ["⚙️ پنل مدیریت", "پنل مدیریت", "⚙️پنل مدیریت"]
+                has_admin_button = any(text in existing_texts for text in admin_button_texts)
+                
+                if is_admin and not has_admin_button:
+                    # Force new row for admin panel
                     if current_col > 0: 
                         current_col = 0
                         next_row += 1 
