@@ -559,6 +559,32 @@ class ProfessionalDatabaseManager:
                         INDEX idx_key (setting_key)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 ''')
+
+                # Create menu_buttons table for dynamic menu management
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS menu_buttons (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        database_name VARCHAR(255) NOT NULL DEFAULT '',
+                        button_key VARCHAR(255) NOT NULL,
+                        button_text VARCHAR(255) NOT NULL,
+                        callback_data VARCHAR(255),
+                        button_type VARCHAR(50) DEFAULT 'callback',
+                        web_app_url TEXT,
+                        row_position INT DEFAULT 0,
+                        column_position INT DEFAULT 0,
+                        is_active TINYINT DEFAULT 1,
+                        is_visible_for_admin TINYINT DEFAULT 0,
+                        is_visible_for_users TINYINT DEFAULT 1,
+                        requires_webapp TINYINT DEFAULT 0,
+                        display_order INT DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        UNIQUE KEY unique_button (database_name, button_key),
+                        INDEX idx_database (database_name),
+                        INDEX idx_active (is_active),
+                        INDEX idx_order (row_position, column_position, display_order)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ''')
                 
                 # Migration: Add database_name column if it doesn't exist (for existing databases)
                 try:
