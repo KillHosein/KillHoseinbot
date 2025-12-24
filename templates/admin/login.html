@@ -190,10 +190,43 @@
             if (data && data.user && data.user.id) {
                 login(data);
             } else {
-                updateStatus('لطفاً از طریق ربات وارد شوید');
+                // Show browser login form
+                updateStatus('ورود با نام کاربری و رمز عبور');
                 document.querySelector('.loader-bar').style.display = 'none';
+                document.getElementById('browser-login-form').style.display = 'block';
             }
         }, 1500);
+
+        function browserLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                updateStatus('لطفا نام کاربری و رمز عبور را وارد کنید');
+                return;
+            }
+
+            updateStatus('در حال بررسی...');
+            
+            fetch('/auth/admin-browser-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    updateStatus('ورود موفقیت آمیز');
+                    window.location.href = result.redirect;
+                } else {
+                    updateStatus('خطا: ' + result.message);
+                }
+            })
+            .catch(err => {
+                console.error('Login error:', err);
+                updateStatus('خطا در برقراری ارتباط');
+            });
+        }
     </script>
 </body>
 

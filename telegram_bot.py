@@ -5605,6 +5605,45 @@ class VPNBot:
                 # Get user's new balance
                 user_data = self.db.get_user(user['telegram_id'])
                 new_balance = user_data.get('balance', 0) if user_data else 0
+
+                # Process Referral Reward for Purchase
+                try:
+                    # Check if user has a referrer
+                    if user_data and user_data.get('referred_by'):
+                        referrer_id = user_data['referred_by']
+                        referrer = self.db.get_user_by_id(referrer_id)
+                        
+                        if referrer:
+                            from config import REFERRAL_CONFIG
+                            if REFERRAL_CONFIG.get('enabled', True):
+                                purchase_amount = invoice['amount']
+                                reward_percent = REFERRAL_CONFIG.get('referral_purchase_percent', 10)
+                                reward_amount = int(purchase_amount * (reward_percent / 100))
+                                
+                                if reward_amount > 0:
+                                    # Add reward to referrer
+                                    self.db.update_user_balance(
+                                        referrer['telegram_id'],
+                                        reward_amount,
+                                        'referral_commission',
+                                        f"پورسانت خرید زیرمجموعه (کاربر {user_data.get('id')})"
+                                    )
+                                    
+                                    # Update referral stats
+                                    self.db.update_user_referral_stats(referrer_id, reward_amount)
+                                    
+                                    # Notify referrer
+                                    try:
+                                        await context.bot.send_message(
+                                            chat_id=referrer['telegram_id'],
+                                            text=f"💰 تبریک! مبلغ {reward_amount:,} تومان بابت خرید زیرمجموعه شما به کیف پولتان اضافه شد."
+                                        )
+                                    except Exception as e:
+                                        logger.warning(f"Failed to notify referrer {referrer_id}: {e}")
+                                        
+                                    logger.info(f"✅ Processed referral commission: {reward_amount} for user {referrer_id}")
+                except Exception as e:
+                    logger.error(f"Error processing referral commission: {e}")
                 
                 text = f"""
 ✅ **سرویس {invoice['gb_amount']} گیگابایتی با موفقیت ایجاد شد!**

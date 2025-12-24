@@ -60,6 +60,7 @@ LOGGING = {
 REFERRAL_CONFIG = {
     'enabled': True,
     'reward_amount': 3000,  # تومان - پاداش برای دعوت کننده
+    'referral_purchase_percent': 10,  # درصد پاداش از خرید زیرمجموعه
     'welcome_bonus': 1000,  # تومان - هدیه ثبت نام
     'min_withdrawal': 5000,  # حداقل برداشت
 }
@@ -76,6 +77,8 @@ WEBAPP_CONFIG = {
     'url': os.getenv('BOT_WEBAPP_URL', os.getenv('WEBAPP_URL', 'https://your-domain.com')),  # Can be ngrok or domain
     'port': 5000,
     'debug': False,  # Set to False in production - prevents memory leaks
+    'admin_username': os.getenv('WEB_ADMIN_USERNAME', 'admin'), # Username for browser login
+    'admin_password': os.getenv('WEB_ADMIN_PASSWORD', 'admin'), # Password for browser login
 }
 
 # MySQL Database Configuration
