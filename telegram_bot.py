@@ -1714,7 +1714,12 @@ class VPNBot:
             return
         elif text == "⚙️ پنل مدیریت":
             # Check admin status (check both config and DB)
-            is_admin_config = (user_id == self.bot_config['admin_id'])
+            try:
+                config_admin_id = int(self.bot_config['admin_id'])
+            except (ValueError, TypeError):
+                config_admin_id = self.bot_config['admin_id']
+                
+            is_admin_config = (user_id == config_admin_id) or (str(user_id) == str(self.bot_config['admin_id']))
             is_admin_db = self.db.is_admin(user_id)
             
             if is_admin_config or is_admin_db:
@@ -2351,7 +2356,15 @@ class VPNBot:
         await query.answer()
         
         user_id = update.effective_user.id
-        if not self.db.is_admin(user_id):
+        
+        try:
+            config_admin_id = int(self.bot_config['admin_id'])
+        except (ValueError, TypeError):
+            config_admin_id = self.bot_config['admin_id']
+            
+        is_admin_config = (user_id == config_admin_id) or (str(user_id) == str(self.bot_config['admin_id']))
+        
+        if not (self.db.is_admin(user_id) or is_admin_config):
             await query.edit_message_text("❌ دسترسی غیرمجاز.")
             return
         
@@ -6346,7 +6359,12 @@ class VPNBot:
         user_id = update.effective_user.id
         
         # Check admin status (check both config and DB)
-        is_admin_config = (user_id == self.bot_config['admin_id'])
+        try:
+            config_admin_id = int(self.bot_config['admin_id'])
+        except (ValueError, TypeError):
+            config_admin_id = self.bot_config['admin_id']
+            
+        is_admin_config = (user_id == config_admin_id) or (str(user_id) == str(self.bot_config['admin_id']))
         is_admin_db = self.db.is_admin(user_id)
         
         if not (is_admin_config or is_admin_db):
