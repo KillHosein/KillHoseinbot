@@ -301,6 +301,49 @@ class ProfessionalButtonLayout:
             menu_buttons = db.get_menu_buttons(is_admin=is_admin)
             
             if menu_buttons and len(menu_buttons) > 0:
+                # Ensure new buttons are present even if DB is stale
+                existing_texts = set(b.get('button_text', '') for b in menu_buttons)
+                
+                # Required buttons map: text -> key
+                required_buttons = [
+                    ("📦 محصولات", "products"),
+                    ("💳 کیف پول", "wallet"),
+                    ("📝 تراکنش‌ها", "transactions"),
+                    ("📞 تماس با ما", "contact_us")
+                ]
+                
+                # Find max row to append after
+                max_row = max((b.get('row_position', 0) for b in menu_buttons), default=0)
+                next_row = max_row + 1
+                current_col = 0
+                
+                for btn_text, btn_key in required_buttons:
+                    if btn_text not in existing_texts:
+                        menu_buttons.append({
+                            'button_text': btn_text,
+                            'button_key': btn_key,
+                            'button_type': 'callback', 
+                            'row_position': next_row,
+                            'column_position': current_col
+                        })
+                        current_col += 1
+                        if current_col > 1:
+                            current_col = 0
+                            next_row += 1
+                            
+                # Also ensure Admin Panel is present if admin
+                if is_admin and "⚙️ پنل مدیریت" not in existing_texts:
+                    if current_col > 0: 
+                        current_col = 0
+                        next_row += 1 
+                    menu_buttons.append({
+                        'button_text': "⚙️ پنل مدیریت",
+                        'button_key': 'admin_panel',
+                        'button_type': 'callback',
+                        'row_position': next_row,
+                        'column_position': 0
+                    })
+
                 # Group buttons by row
                 rows = {}
                 for button in menu_buttons:
