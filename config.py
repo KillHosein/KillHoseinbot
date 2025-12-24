@@ -75,7 +75,7 @@ BOT_MESSAGES = {
 WEBAPP_CONFIG = {
     'enabled': True,
     'url': os.getenv('BOT_WEBAPP_URL', os.getenv('WEBAPP_URL', 'https://your-domain.com')),  # Can be ngrok or domain
-    'port': int(os.getenv('WEBAPP_PORT', 5000)),
+    'port': int(os.getenv('WEBAPP_PORT', 1234)),
     'debug': False,  # Set to False in production - prevents memory leaks
     'admin_username': os.getenv('WEB_ADMIN_USERNAME', 'admin'), # Username for browser login
     'admin_password': os.getenv('WEB_ADMIN_PASSWORD', 'admin'), # Password for browser login
