@@ -309,33 +309,11 @@ class ProfessionalButtonLayout:
                     if b.get('button_type') != 'webapp'
                 )
                 
-                # Required buttons map: text -> key
-                required_buttons = [
-                    ("📦 محصولات", "products"),
-                    ("💳 کیف پول", "wallet"),
-                    ("📝 تراکنش‌ها", "transactions"),
-                    ("📞 تماس با ما", "contact_us")
-                ]
-                
                 # Find max row to append after
                 max_row = max((b.get('row_position', 0) for b in menu_buttons), default=0)
                 next_row = max_row + 1
                 current_col = 0
                 
-                for btn_text, btn_key in required_buttons:
-                    if btn_text not in existing_texts:
-                        menu_buttons.append({
-                            'button_text': btn_text,
-                            'button_key': btn_key,
-                            'button_type': 'callback', 
-                            'row_position': next_row,
-                            'column_position': current_col
-                        })
-                        current_col += 1
-                        if current_col > 1:
-                            current_col = 0
-                            next_row += 1
-                            
                 # Also ensure Admin Panel is present if admin
                 # Check for exact text or common variations
                 admin_button_texts = ["⚙️ پنل مدیریت", "پنل مدیریت", "⚙️پنل مدیریت"]
@@ -413,16 +391,16 @@ class ProfessionalButtonLayout:
         ])
         
         # New buttons row (2 columns)
-        keyboard.append([
-            KeyboardButton("📦 محصولات"),
-            KeyboardButton("💳 کیف پول")
-        ])
+        # keyboard.append([
+        #     KeyboardButton("📦 محصولات"),
+        #     KeyboardButton("💳 کیف پول")
+        # ])
         
         # New buttons row 2 (2 columns)
-        keyboard.append([
-            KeyboardButton("📝 تراکنش‌ها"),
-            KeyboardButton("📞 تماس با ما")
-        ])
+        # keyboard.append([
+        #     KeyboardButton("📝 تراکنش‌ها"),
+        #     KeyboardButton("📞 تماس با ما")
+        # ])
         
         # Admin panel (only for admins)
         if is_admin:
