@@ -302,7 +302,12 @@ class ProfessionalButtonLayout:
             
             if menu_buttons and len(menu_buttons) > 0:
                 # Ensure new buttons are present even if DB is stale
-                existing_texts = set(str(b.get('button_text', '')).strip() for b in menu_buttons)
+                # Filter out webapp buttons from presence check since they are hidden in main menu
+                existing_texts = set(
+                    str(b.get('button_text', '')).strip() 
+                    for b in menu_buttons 
+                    if b.get('button_type') != 'webapp'
+                )
                 
                 # Required buttons map: text -> key
                 required_buttons = [
