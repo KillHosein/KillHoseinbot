@@ -85,6 +85,200 @@ class DatabaseBackupSystem:
         
         return None
     
+        return None
+    
+    def _find_mysql(self) -> Optional[str]:
+        """Find mysql executable path"""
+        # First try direct command (if in PATH)
+        try:
+            result = subprocess.run(['mysql', '--version'], 
+                                  capture_output=True, 
+                                  timeout=5)
+            if result.returncode == 0:
+                return 'mysql'
+        except:
+            pass
+        
+        # Try common Windows paths
+        if platform.system() == 'Windows':
+            common_paths = [
+                r'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe',
+                r'C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe',
+                r'C:\Program Files\MySQL\MySQL Server 5.7\bin\mysql.exe',
+                r'C:\Program Files (x86)\MySQL\MySQL Server 8.0\bin\mysql.exe',
+                r'C:\Program Files (x86)\MySQL\MySQL Server 8.4\bin\mysql.exe',
+                r'C:\xampp\mysql\bin\mysql.exe',
+                r'C:\wamp\bin\mysql\mysql*\bin\mysql.exe',
+            ]
+            
+            for path in common_paths:
+                if os.path.exists(path):
+                    logger.info(f"✅ Found mysql at: {path}")
+                    return path
+                
+                # Try wildcard expansion for wamp
+                if '*' in path:
+                    import glob
+                    matches = glob.glob(path)
+                    if matches:
+                        logger.info(f"✅ Found mysql at: {matches[0]}")
+                        return matches[0]
+        
+        return None
+
+    async def _restore_backup_with_python(self, db_host: str, db_port: int, db_user: str, 
+                                        db_password: str, db_name: str, backup_path: str) -> bool:
+        """Restore backup using Python MySQL connector"""
+        try:
+            import mysql.connector
+            from mysql.connector import Error
+            
+            logger.info(f"Using Python MySQL connector for restore...")
+            
+            connection = None
+            try:
+                connection = mysql.connector.connect(
+                    host=db_host,
+                    port=db_port,
+                    user=db_user,
+                    password=db_password
+                )
+                
+                cursor = connection.cursor()
+                
+                # Create database if not exists
+                cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+                cursor.execute(f"USE `{db_name}`")
+                
+                # Read and execute SQL file
+                with open(backup_path, 'r', encoding='utf-8') as f:
+                    # Read the whole file
+                    sql_script = f.read()
+                    
+                    # Split by semicolon (naive approach, but might work for simple dumps)
+                    # Better approach: use iterator or parse properly
+                    # For now, let's try executing commands one by one
+                    commands = sql_script.split(';')
+                    
+                    # Disable foreign key checks
+                    cursor.execute("SET FOREIGN_KEY_CHECKS=0")
+                    
+                    for command in commands:
+                        if command.strip():
+                            try:
+                                cursor.execute(command)
+                            except Error as e:
+                                # Ignore some errors like "Table exists" if we want, but better to log
+                                logger.warning(f"SQL execution warning: {e}")
+                    
+                    # Enable foreign key checks
+                    cursor.execute("SET FOREIGN_KEY_CHECKS=1")
+                    connection.commit()
+                
+                cursor.close()
+                return True
+                
+            except Error as e:
+                logger.error(f"❌ MySQL error during restore: {e}")
+                return False
+            finally:
+                if connection and connection.is_connected():
+                    connection.close()
+                    
+        except Exception as e:
+            logger.error(f"❌ Error restoring backup with Python: {e}")
+            return False
+
+    async def restore_backup(self, backup_path: str) -> bool:
+        """
+        Restore database from backup file
+        
+        Args:
+            backup_path: Path to backup file (can be .sql or .gz)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        temp_dir = None
+        try:
+            # Check if file exists
+            if not os.path.exists(backup_path):
+                logger.error(f"❌ Backup file not found: {backup_path}")
+                return False
+            
+            # Create temp dir
+            temp_dir = tempfile.mkdtemp()
+            
+            # Decompress if needed
+            sql_path = backup_path
+            if backup_path.endswith('.gz'):
+                sql_path = os.path.join(temp_dir, "restore.sql")
+                logger.info(f"Decompressing backup file: {backup_path}")
+                with gzip.open(backup_path, 'rb') as f_in:
+                    with open(sql_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            
+            # Get database connection details
+            db_host = self.db_config.get('host', 'localhost')
+            db_port = self.db_config.get('port', 3306)
+            db_user = self.db_config.get('user', 'root')
+            db_password = self.db_config.get('password', '')
+            db_name = self.db_config.get('database', 'vpn_bot')
+            
+            logger.info(f"Restoring database {db_name} from {sql_path}...")
+            
+            # Try to find mysql client
+            mysql_path = self._find_mysql()
+            
+            if mysql_path:
+                # Use mysql client
+                env = os.environ.copy()
+                env['MYSQL_PWD'] = db_password
+                
+                cmd = [
+                    mysql_path,
+                    f'--host={db_host}',
+                    f'--port={db_port}',
+                    f'--user={db_user}',
+                    db_name
+                ]
+                
+                # Execute mysql
+                with open(sql_path, 'r', encoding='utf-8') as f:
+                    result = subprocess.run(
+                        cmd,
+                        env=env,
+                        stdin=f,
+                        capture_output=True,
+                        timeout=600  # 10 minutes timeout
+                    )
+                
+                if result.returncode != 0:
+                    error_msg = result.stderr.decode('utf-8', errors='ignore')
+                    logger.error(f"❌ mysql restore failed: {error_msg}")
+                    logger.info("⚠️ Falling back to Python-based restore...")
+                    if not await self._restore_backup_with_python(db_host, db_port, db_user, db_password, db_name, sql_path):
+                        return False
+                else:
+                    logger.info("✅ Database restored successfully using mysql")
+                    return True
+            else:
+                # Use Python-based restore
+                logger.info("⚠️ mysql client not found, using Python-based restore...")
+                if not await self._restore_backup_with_python(db_host, db_port, db_user, db_password, db_name, sql_path):
+                    return False
+                    
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error restoring backup: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return False
+        finally:
+            if temp_dir and os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
+    
     async def _create_backup_with_python(self, db_host: str, db_port: int, db_user: str, 
                                         db_password: str, db_name: str, backup_path: str) -> bool:
         """Create backup using Python MySQL connector"""

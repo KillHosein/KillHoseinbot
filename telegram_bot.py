@@ -16221,6 +16221,88 @@ class VPNBot:
             parse_mode='Markdown'
         )
 
+
+    async def handle_system_restore_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle system restore request - ask for file"""
+        query = update.callback_query
+        
+        # Check admin
+        user_id = update.effective_user.id
+        if not self.db.is_admin(user_id):
+            await query.answer("❌ دسترسی غیرمجاز.", show_alert=True)
+            return
+
+        # Set state
+        context.user_data['awaiting_restore_file'] = True
+        
+        # Show instruction
+        keyboard = [[InlineKeyboardButton("🔙 لغو", callback_data="system_settings")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            "♻️ **بازیابی بکاپ دیتابیس**\n\n"
+            "لطفاً فایل بکاپ (با فرمت .sql یا .sql.gz) را ارسال کنید.\n"
+            "⚠️ **هشدار:** با این کار دیتابیس فعلی کاملاً پاک شده و با اطلاعات بکاپ جایگزین می‌شود.",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+
+    async def handle_document_upload(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle document uploads (for restore)"""
+        if not context.user_data.get('awaiting_restore_file'):
+            return
+            
+        user_id = update.effective_user.id
+        if not self.db.is_admin(user_id):
+            return
+            
+        document = update.message.document
+        if not document:
+            return
+            
+        file_name = document.file_name
+        if not (file_name.endswith('.sql') or file_name.endswith('.gz')):
+            await update.message.reply_text("❌ فرمت فایل نامعتبر است. لطفاً فایل .sql یا .gz ارسال کنید.")
+            return
+            
+        try:
+            status_msg = await update.message.reply_text("⏳ در حال دانلود و بررسی فایل...")
+            
+            # Download file
+            new_file = await context.bot.get_file(document.file_id)
+            
+            import os
+            import tempfile
+            import shutil
+            
+            # Create temp file
+            temp_dir = tempfile.mkdtemp()
+            file_path = os.path.join(temp_dir, file_name)
+            
+            await new_file.download_to_drive(file_path)
+            
+            await status_msg.edit_text("⏳ در حال بازیابی دیتابیس...\nاین عملیات ممکن است چند دقیقه طول بکشد.")
+            
+            # Restore
+            success = await self.system_manager.backup_system.restore_backup(file_path)
+            
+            # Cleanup
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            context.user_data['awaiting_restore_file'] = False
+            
+            if success:
+                await status_msg.edit_text("✅ دیتابیس با موفقیت بازیابی شد.\n\n🔄 پیشنهاد می‌شود سرویس‌ها را ریستارت کنید.")
+                
+                # Show menu
+                keyboard = ButtonLayout.create_system_settings_menu()
+                await update.message.reply_text("⚙️ تنظیمات سیستم", reply_markup=keyboard)
+            else:
+                await status_msg.edit_text("❌ خطا در بازیابی دیتابیس. لطفاً لاگ‌ها را بررسی کنید.")
+                
+        except Exception as e:
+            logger.error(f"Error handling restore upload: {e}")
+            await update.message.reply_text(f"❌ خطا: {str(e)}")
+
     async def handle_system_action(self, update: Update, context: ContextTypes.DEFAULT_TYPE, action: str):
         """Handle system actions"""
         query = update.callback_query
@@ -16243,6 +16325,9 @@ class VPNBot:
             # Return to menu
             reply_markup = ButtonLayout.create_back_button("system_settings")
             await query.edit_message_text(msg, reply_markup=reply_markup)
+
+        elif action == "restore":
+            await self.handle_system_restore_request(update, context)
             
         elif action == "status":
             await query.answer("⏳ دریافت وضعیت...", show_alert=True)
@@ -16317,6 +16402,7 @@ def main():
     application.add_handler(CallbackQueryHandler(bot.handle_callback_query))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, bot.handle_text_message))
     application.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, bot.handle_receipt_upload))
+    application.add_handler(MessageHandler(filters.Document.ALL & filters.ChatType.PRIVATE, bot.handle_document_upload))
     
     # Add error handler
     async def error_handler(update, context):
@@ -16379,6 +16465,17 @@ def main():
     optimized_monitoring_thread = threading.Thread(target=start_optimized_monitoring, daemon=True, name="OptimizedMonitor")
     optimized_monitoring_thread.start()
     logger.info("✅ OptimizedMonitor thread started successfully")
+    
+    # Start automatic backup scheduler
+    def start_backup_scheduler():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        # Run backup every 6 hours
+        loop.run_until_complete(bot.system_manager.backup_system.start_auto_backup(interval_hours=6))
+
+    backup_thread = threading.Thread(target=start_backup_scheduler, daemon=True, name="BackupScheduler")
+    backup_thread.start()
+    logger.info("✅ BackupScheduler thread started successfully")
     
     application.run_polling()
 

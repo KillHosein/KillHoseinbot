@@ -810,10 +810,11 @@ class ProfessionalButtonLayout:
             # Row 1: Backup & Status
             [
                 InlineKeyboardButton("💾 بکاپ دیتابیس", callback_data="sys_backup"),
-                InlineKeyboardButton("📊 وضعیت سیستم", callback_data="sys_status")
+                InlineKeyboardButton("♻️ بازیابی بکاپ", callback_data="sys_restore")
             ],
-            # Row 2: Logs
+            # Row 2: Status & Logs
             [
+                InlineKeyboardButton("📊 وضعیت سیستم", callback_data="sys_status"),
                 InlineKeyboardButton("📋 لاگ‌های سیستم", callback_data="sys_logs")
             ],
             # Row 3: Restart (Full width for safety)
