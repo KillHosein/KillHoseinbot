@@ -1700,6 +1700,18 @@ class VPNBot:
         elif text == "❓ راهنما و پشتیبانی":
             await self.show_help(update, context)
             return
+        elif text == "📦 محصولات":
+            await self.handle_products(update, context)
+            return
+        elif text == "💳 کیف پول":
+            await self.handle_wallet(update, context)
+            return
+        elif text == "📝 تراکنش‌ها":
+            await self.handle_transactions(update, context)
+            return
+        elif text == "📞 تماس با ما":
+            await self.handle_contact_us(update, context)
+            return
         elif text == "⚙️ پنل مدیریت":
             # Check admin status (check both config and DB)
             is_admin_config = (user_id == self.bot_config['admin_id'])
@@ -9349,6 +9361,82 @@ class VPNBot:
                 await update.message.reply_text(error_text)
     
     @auto_update_user_info
+    async def handle_products(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle products menu - same as buy service"""
+        await self.handle_buy_service(update, context)
+        
+    async def handle_wallet(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle wallet menu - same as account balance"""
+        await self.handle_account_balance(update, context)
+        
+    async def handle_transactions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle transactions history"""
+        user_id = update.effective_user.id
+        
+        try:
+            transactions = self.db.get_user_transactions(user_id, limit=10)
+            
+            if not transactions:
+                await update.message.reply_text("📋 شما هنوز هیچ تراکنشی ندارید.")
+                return
+            
+            message = "📝 **تاریخچه ۱۰ تراکنش اخیر شما:**\n\n"
+            
+            for tx in transactions:
+                # Determine type and symbol
+                source = tx.get('source')
+                
+                if source == 'balance_transaction':
+                    tx_type = tx.get('type', 'unknown')
+                    amount = tx.get('amount', 0)
+                    desc = tx.get('description', 'بدون توضیحات')
+                    date = tx.get('created_at')
+                    
+                    if tx_type == 'credit':
+                        symbol = "➕"
+                        action = "افزایش اعتبار"
+                    else:
+                        symbol = "➖"
+                        action = "کاهش اعتبار"
+                else: # invoice
+                    status = tx.get('status', 'unknown')
+                    amount = tx.get('amount', 0)
+                    desc = f"خرید سرویس (اینباند {tx.get('inbound_id')})"
+                    date = tx.get('created_at')
+                    
+                    if status == 'paid':
+                        symbol = "💳"
+                        action = "پرداخت فاکتور"
+                    else:
+                        symbol = "⏳"
+                        action = "فاکتور (در انتظار/ناموفق)"
+
+                # Format date
+                if date:
+                    from persian_datetime import PersianDateTime
+                    if hasattr(date, 'strftime'):
+                        date_str = PersianDateTime.format_datetime(date)
+                    else:
+                        date_str = str(date)
+                else:
+                    date_str = "نامشخص"
+                    
+                message += f"{symbol} **{action}**\n"
+                message += f"💰 مبلغ: {amount:,} تومان\n"
+                message += f"📝 بابت: {desc}\n"
+                message += f"📅 تاریخ: {date_str}\n"
+                message += "-------------------\n"
+            
+            await update.message.reply_text(message, parse_mode='Markdown')
+            
+        except Exception as e:
+            logger.error(f"Error handling transactions: {e}")
+            await update.message.reply_text("❌ خطا در دریافت تاریخچه تراکنش‌ها.")
+
+    async def handle_contact_us(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle contact us"""
+        await self.show_help(update, context)
+
     async def handle_buy_service(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle buy service menu"""
         query = update.callback_query
