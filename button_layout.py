@@ -301,6 +301,10 @@ class ProfessionalButtonLayout:
             menu_buttons = db.get_menu_buttons(is_admin=is_admin)
             
             if menu_buttons and len(menu_buttons) > 0:
+                # Remove unwanted buttons if they exist in DB
+                unwanted_keys = ['products', 'wallet', 'transactions', 'contact_us']
+                menu_buttons = [b for b in menu_buttons if b.get('button_key') not in unwanted_keys]
+
                 # Ensure new buttons are present even if DB is stale
                 # Filter out webapp buttons from presence check since they are hidden in main menu
                 existing_texts = set(
