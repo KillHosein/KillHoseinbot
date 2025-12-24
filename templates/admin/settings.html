@@ -133,39 +133,6 @@
     </div>
 </div>
 
-<script>
-    function updateCredentials() {
-        const username = document.getElementById('new_admin_username').value;
-        const password = document.getElementById('new_admin_password').value;
-        
-        if (!username || !password) {
-            alert('لطفا نام کاربری و رمز عبور را وارد کنید');
-            return;
-        }
-        
-        if (confirm('آیا از تغییر اطلاعات ورود مطمئن هستید؟')) {
-            fetch('/admin/update-credentials', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    document.getElementById('new_admin_password').value = '';
-                } else {
-                    alert('خطا: ' + data.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('خطا در برقراری ارتباط');
-            });
-        }
-    }
-</script>
-
 <style>
     .setting-item {
         display: flex;
