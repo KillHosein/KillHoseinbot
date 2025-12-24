@@ -16731,8 +16731,8 @@ def main():
     def start_backup_scheduler():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        # Run backup every 6 hours
-        loop.run_until_complete(bot.system_manager.backup_system.start_auto_backup(interval_hours=6))
+        # Run backup every 6 hours (default)
+        loop.run_until_complete(bot.system_manager.backup_system.start_auto_backup(default_interval_hours=6))
 
     backup_thread = threading.Thread(target=start_backup_scheduler, daemon=True, name="BackupScheduler")
     backup_thread.start()
