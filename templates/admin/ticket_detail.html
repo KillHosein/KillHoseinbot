@@ -1,0 +1,502 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}تیکت #{{ ticket.id }}{% endblock %}
+{% block page_subtitle %}{{ ticket.subject }}{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Actions Bar -->
+    <div class="card" style="margin-bottom: var(--sp-xl);">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-md);">
+            <a href="/admin/tickets" class="btn btn-outline">
+                <i class="fas fa-arrow-right"></i>
+                بازگشت به لیست
+            </a>
+
+            <div style="display: flex; gap: var(--sp-sm); flex-wrap: wrap;">
+                {% if ticket.status == 'open' %}
+                <button onclick="closeTicket({{ ticket.id }})" class="btn"
+                    style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3); display: flex; align-items: center; gap: var(--sp-xs); transition: all 0.3s ease;">
+                    <i class="fas fa-lock"></i>
+                    <span>بستن تیکت</span>
+                </button>
+                {% else %}
+                <button onclick="reopenTicket({{ ticket.id }})" class="btn"
+                    style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); display: flex; align-items: center; gap: var(--sp-xs); transition: all 0.3s ease;">
+                    <i class="fas fa-unlock"></i>
+                    <span>باز کردن تیکت</span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid-ticket-layout" style="display: grid; grid-template-columns: 300px 1fr; gap: var(--sp-xl);">
+        <!-- Sidebar Info -->
+        <div style="display: flex; flex-direction: column; gap: var(--sp-md);">
+            <div class="card">
+                <div class="card-header"
+                    style="margin-bottom: var(--sp-md); padding-bottom: var(--sp-md); border-bottom: 1px solid var(--border-color);">
+                    <div style="font-weight: 800;">اطلاعات تیکت</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: var(--sp-md);">
+                    <div class="info-item">
+                        <div class="info-label">وضعیت</div>
+                        <div class="info-value">
+                            {% if ticket.status == 'open' %}
+                            <span class="badge badge-success">باز</span>
+                            {% else %}
+                            <span class="badge badge-secondary">بسته شده</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-label">اولویت</div>
+                        <div class="info-value">
+                            {% if ticket.priority == 'high' %}
+                            <span class="badge badge-error">بالا</span>
+                            {% elif ticket.priority == 'low' %}
+                            <span class="badge badge-secondary">پایین</span>
+                            {% else %}
+                            <span class="badge badge-info">عادی</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="info-item">
+                        <div class="info-label">تاریخ ایجاد</div>
+                        <div class="info-value" style="direction: ltr;">
+                            {{ ticket.created_at.strftime('%Y/%m/%d %H:%M') if ticket.created_at else 'نامشخص' }}
+                        </div>
+                    </div>
+
+                    {% if ticket.updated_at %}
+                    <div class="info-item">
+                        <div class="info-label">آخرین بروزرسانی</div>
+                        <div class="info-value" style="direction: ltr;">
+                            {{ ticket.updated_at.strftime('%Y/%m/%d %H:%M') }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"
+                    style="margin-bottom: var(--sp-md); padding-bottom: var(--sp-md); border-bottom: 1px solid var(--border-color);">
+                    <div style="font-weight: 800;">اطلاعات کاربر</div>
+                </div>
+
+                <div
+                    style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--sp-sm);">
+                    <div
+                        style="width: 80px; height: 80px; border-radius: 50%; background: var(--p-bg-hover); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--p-primary); margin-bottom: var(--sp-xs);">
+                        {{ (ticket.first_name or ticket.username or 'U')[0]|upper }}
+                    </div>
+                    <div style="font-weight: 800; font-size: 1.1rem;">{{ ticket.first_name or 'کاربر' }}</div>
+                    <div style="color: var(--p-text-muted); direction: ltr;">@{{ ticket.username or ticket.telegram_id
+                        }}</div>
+                    <a href="/admin/users/{{ ticket.user_id }}" class="btn btn-sm btn-outline"
+                        style="width: 100%; margin-top: var(--sp-sm);">
+                        <i class="fas fa-user"></i>
+                        مشاهده پروفایل
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div style="display: flex; flex-direction: column; gap: var(--sp-md);">
+            <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                <div class="card-header"
+                    style="margin-bottom: var(--sp-md); padding-bottom: var(--sp-md); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-weight: 800;">
+                        <i class="fas fa-comments" style="color: var(--p-primary); margin-left: 5px;"></i>
+                        گفتگو
+                    </div>
+                    <span class="badge badge-primary">{{ replies|length }} پیام</span>
+                </div>
+
+                <div class="chat-messages"
+                    style="display: flex; flex-direction: column; gap: var(--sp-md); margin-bottom: var(--sp-xl);">
+                    {% for reply in replies %}
+                    <div
+                        class="message-bubble {% if reply.is_admin_reply %}message-admin{% else %}message-user{% endif %}">
+                        <div class="message-avatar">
+                            {% if reply.is_admin_reply %}
+                            <div class="avatar-icon admin-avatar"><i class="fas fa-user-shield"></i></div>
+                            {% else %}
+                            <div class="avatar-icon user-avatar"><i class="fas fa-user"></i></div>
+                            {% endif %}
+                        </div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-author">
+                                    {% if reply.is_admin_reply %}پشتیبانی{% else %}{{ reply.first_name or 'کاربر' }}{%
+                                    endif %}
+                                </span>
+                                <span class="message-time">
+                                    {{ reply.created_at.strftime('%Y/%m/%d %H:%M') if reply.created_at else 'نامشخص' }}
+                                </span>
+                            </div>
+                            <div class="message-text">
+                                {{ reply.message|nl2br|safe }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if ticket.status == 'open' %}
+                <div class="reply-area"
+                    style="margin-top: auto; padding-top: var(--sp-md); border-top: 1px solid var(--border-color);">
+                    <form id="replyForm" onsubmit="addReply(event)">
+                        <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+                        <div class="form-group">
+                            <label class="form-label">پاسخ شما</label>
+                            <textarea id="replyMessage" name="message" class="form-control" rows="5" required
+                                placeholder="پاسخ خود را بنویسید..."></textarea>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary" id="replyBtn">
+                                <i class="fas fa-paper-plane"></i>
+                                ارسال پاسخ
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% else %}
+                <div class="alert alert-warning" style="margin-top: auto; text-align: center;">
+                    <i class="fas fa-lock"></i>
+                    این تیکت بسته شده است. برای ارسال پاسخ، ابتدا تیکت را باز کنید.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media (max-width: 992px) {
+        .grid-ticket-layout {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--sp-sm) 0;
+        border-bottom: 1px dashed var(--border-color);
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-size: 0.9rem;
+        color: var(--p-text-muted);
+    }
+
+    .info-value {
+        font-weight: 700;
+    }
+
+    .message-bubble {
+        display: flex;
+        gap: var(--sp-md);
+        max-width: 85%;
+    }
+
+    .message-user {
+        align-self: flex-start;
+        flex-direction: row-reverse;
+    }
+
+    .message-admin {
+        align-self: flex-end;
+        flex-direction: row;
+    }
+
+    .message-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: var(--p-text-muted);
+    }
+
+    .message-text {
+        padding: var(--sp-md);
+        border-radius: var(--radius-lg);
+        line-height: 1.6;
+        position: relative;
+    }
+
+    .message-user .message-text {
+        background: var(--p-bg-hover);
+        border-top-right-radius: 0;
+    }
+
+    .message-admin .message-text {
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-top-left-radius: 0;
+    }
+
+    .avatar-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .user-avatar {
+        background: var(--p-bg-hover);
+        color: var(--p-text-muted);
+    }
+
+    .admin-avatar {
+        background: var(--p-primary);
+    }
+</style>
+
+<script>
+    async function addReply(event) {
+        event.preventDefault();
+        const form = event.target;
+        const replyBtn = document.getElementById('replyBtn');
+        const originalText = replyBtn.innerHTML;
+        const message = form.message.value;
+
+        if (!message.trim()) return;
+
+        replyBtn.disabled = true;
+        replyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> در حال ارسال...';
+
+        try {
+            await apiCall('/api/admin/tickets/reply', {
+                method: 'POST',
+                body: JSON.stringify({
+                    ticket_id: {{ ticket.id }},
+                message: message
+                })
+    });
+    showToast('پاسخ با موفقیت ارسال شد', 'success');
+    setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+        console.error(error);
+    } finally {
+        replyBtn.disabled = false;
+        replyBtn.innerHTML = originalText;
+    }
+    }
+
+    function closeTicket(id) {
+        // Remove existing modals
+        document.querySelectorAll('.modal-overlay').forEach(m => m.remove());
+
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        `;
+
+        modal.innerHTML = `
+            <div class="modal-card" style="
+                background: var(--p-bg-card);
+                border-radius: var(--radius-xl);
+                padding: 0;
+                width: 90%;
+                max-width: 400px;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                transform: scale(0.95);
+                transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                border: 1px solid var(--border-color);
+                overflow: hidden;
+            ">
+                <div class="modal-header" style="
+                    padding: var(--sp-lg);
+                    border-bottom: 1px solid var(--border-color);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: var(--p-bg-hover);
+                ">
+                    <div style="font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+                        <span style="
+                            width: 32px; 
+                            height: 32px; 
+                            border-radius: 8px; 
+                            background: rgba(239, 68, 68, 0.1); 
+                            color: #ef4444; 
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center;
+                        ">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        بستن تیکت
+                    </div>
+                    <button onclick="this.closest('.modal-overlay').remove()" style="
+                        background: none;
+                        border: none;
+                        color: var(--p-text-muted);
+                        cursor: pointer;
+                        font-size: 1.2rem;
+                        padding: 5px;
+                        transition: color 0.2s;
+                    " onmouseover="this.style.color='var(--p-error)'" onmouseout="this.style.color='var(--p-text-muted)'">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body" style="padding: var(--sp-xl);">
+                    <p style="margin-bottom: var(--sp-md); line-height: 1.6; color: var(--p-text-main);">
+                        آیا از بستن این تیکت اطمینان دارید؟
+                    </p>
+                    <div style="
+                        background: rgba(239, 68, 68, 0.05);
+                        border: 1px dashed rgba(239, 68, 68, 0.3);
+                        border-radius: var(--radius-lg);
+                        padding: var(--sp-md);
+                        font-size: 0.9rem;
+                        color: var(--p-text-muted);
+                    ">
+                        <i class="fas fa-info-circle" style="color: #ef4444; margin-left: 5px;"></i>
+                        با بستن تیکت، کاربر دیگر قادر به ارسال پاسخ نخواهد بود، اما تاریخچه گفتگو حفظ می‌شود.
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="
+                    padding: var(--sp-lg);
+                    border-top: 1px solid var(--border-color);
+                    display: flex;
+                    gap: var(--sp-md);
+                    background: var(--p-bg-main);
+                ">
+                    <button onclick="this.closest('.modal-overlay').remove()" class="btn" style="
+                        flex: 1;
+                        background: transparent;
+                        border: 1px solid var(--border-color);
+                        color: var(--p-text-main);
+                        padding: 10px;
+                        border-radius: var(--radius-lg);
+                        cursor: pointer;
+                        font-weight: 600;
+                    ">
+                        انصراف
+                    </button>
+                    <button onclick="confirmCloseTicket(${id})" class="btn" style="
+                        flex: 2;
+                        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                        color: white;
+                        border: none;
+                        padding: 10px;
+                        border-radius: var(--radius-lg);
+                        cursor: pointer;
+                        font-weight: 600;
+                        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                    ">
+                        <i class="fas fa-check"></i>
+                        بله، ببند
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Animation
+        requestAnimationFrame(() => {
+            modal.style.opacity = '1';
+            const card = modal.querySelector('.modal-card');
+            card.style.transform = 'scale(1)';
+        });
+
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                modal.style.opacity = '0';
+                modal.querySelector('.modal-card').style.transform = 'scale(0.95)';
+                setTimeout(() => modal.remove(), 300);
+            }
+        });
+    }
+
+    async function confirmCloseTicket(id) {
+        const modal = document.querySelector('.modal-overlay');
+        const btn = modal.querySelector('button[onclick^="confirmCloseTicket"]');
+        const originalContent = btn.innerHTML;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> در حال انجام...';
+
+        try {
+            await apiCall(`/api/admin/tickets/${id}/close`, {
+                method: 'POST'
+            });
+
+            showToast('تیکت با موفقیت بسته شد', 'success');
+
+            // Close modal with animation
+            modal.style.opacity = '0';
+            modal.querySelector('.modal-card').style.transform = 'scale(0.95)';
+
+            setTimeout(() => {
+                modal.remove();
+                window.location.reload();
+            }, 300);
+
+        } catch (error) {
+            console.error(error);
+            showToast(error.message || 'خطا در بستن تیکت', 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+    }
+
+    async function reopenTicket(id) {
+        try {
+            await apiCall(`/api/admin/tickets/${id}/reopen`, {
+                method: 'POST'
+            });
+            showToast('تیکت باز شد', 'success');
+            setTimeout(() => window.location.reload(), 500);
+        } catch (error) {
+            console.error(error);
+            showToast('خطا در باز کردن تیکت', 'error');
+        }
+    }
+</script>
+{% endblock %}

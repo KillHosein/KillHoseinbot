@@ -1,0 +1,333 @@
+{% extends "admin/base.html" %}
+
+{% block page_title %}مدیریت کاربران{% endblock %}
+{% block page_subtitle %}لیست و مدیریت کاربران سیستم{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Actions Bar -->
+    <div class="card" style="margin-bottom: var(--sp-xl);">
+        <div
+            style="display: flex; flex-wrap: wrap; gap: var(--sp-md); justify-content: space-between; align-items: center;">
+
+            <!-- Search -->
+            <div
+                style="flex: 1; min-width: 300px; display: flex; align-items: center; gap: var(--sp-sm); background: var(--p-bg-main); padding: var(--sp-sm) var(--sp-md); border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+                <i class="fas fa-search" style="color: var(--p-text-muted);"></i>
+                <input type="text" id="searchInput" placeholder="جستجو (نام، یوزرنیم، آیدی...)" value="{{ search }}"
+                    style="flex: 1; color: var(--p-text-main);" onkeypress="handleSearchKeypress(event)">
+                {% if search %}
+                <button onclick="clearSearch()" style="color: var(--p-text-muted); cursor: pointer;"><i
+                        class="fas fa-times"></i></button>
+                {% endif %}
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: var(--sp-sm);">
+                <button class="btn btn-primary" onclick="performSearch()">
+                    <i class="fas fa-search"></i>
+                    <span>جستجو</span>
+                </button>
+                <button class="btn btn-primary" onclick="showGiftModal()" style="background: var(--p-warning); border-color: var(--p-warning); color: white;">
+                    <i class="fas fa-gift"></i>
+                    <span>هدیه همگانی</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Grid -->
+    <div class="grid-3" style="margin-bottom: var(--sp-xl);">
+        {% if users %}
+        {% for user in users %}
+        <div class="card user-card">
+            <div class="card-header"
+                style="margin-bottom: var(--sp-md); border-bottom: 1px solid var(--border-color); padding-bottom: var(--sp-md);">
+                <div style="display: flex; gap: var(--sp-md); align-items: center;">
+                    <div style="position: relative;">
+                        {% if user.photo_url %}
+                        <img src="{{ user.photo_url }}" alt="Avatar"
+                            style="width: 50px; height: 50px; border-radius: var(--radius-lg); object-fit: cover;">
+                        {% else %}
+                        <div
+                            style="width: 50px; height: 50px; border-radius: var(--radius-lg); background: var(--p-bg-hover); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; color: var(--p-red-500);">
+                            {{ (user.first_name or user.username or 'U')[0]|upper }}
+                        </div>
+                        {% endif %}
+                        <div
+                            style="position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; border-radius: 50%; background: var(--p-success); border: 2px solid var(--p-bg-card);">
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-weight: 800; font-size: 1rem; margin-bottom: 2px;">{{ user.first_name or 'کاربر
+                            ناشناس' }}</div>
+                        <div style="font-size: 0.8rem; color: var(--p-text-muted);">@{{ user.username or '---' }}</div>
+                    </div>
+                </div>
+                <a href="/admin/users/{{ user.id }}" class="btn btn-sm btn-outline">
+                    <i class="fas fa-eye"></i>
+                </a>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: var(--sp-sm);">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: var(--sp-sm); background: var(--p-bg-hover); border-radius: var(--radius-md);">
+                    <span style="font-size: 0.8rem; color: var(--p-text-muted);">موجودی</span>
+                    <span style="font-weight: 700; color: var(--p-success);">{{ "{:,}".format(user.balance or 0) }}
+                        <span style="font-size: 0.7rem;">تومان</span></span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: var(--sp-sm); background: var(--p-bg-hover); border-radius: var(--radius-md);">
+                    <span style="font-size: 0.8rem; color: var(--p-text-muted);">سرویس‌ها</span>
+                    <span style="font-weight: 700; color: var(--p-info);">{{ user.total_clients or 0 }} <span
+                            style="font-size: 0.7rem;">عدد</span></span>
+                </div>
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; padding: var(--sp-sm); background: var(--p-bg-hover); border-radius: var(--radius-md);">
+                    <span style="font-size: 0.8rem; color: var(--p-text-muted);">عضویت</span>
+                    <span style="font-weight: 700; color: var(--p-text-dim);">{{ user.created_at.strftime('%Y/%m/%d') if
+                        user.created_at else '-' }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="card" style="grid-column: 1 / -1; text-align: center; padding: var(--sp-3xl);">
+            <i class="fas fa-users-slash"
+                style="font-size: 3rem; color: var(--p-bg-active); margin-bottom: var(--sp-lg);"></i>
+            <h3 style="margin-bottom: var(--sp-sm);">کاربری یافت نشد</h3>
+            <p class="text-muted">هیچ کاربری با مشخصات وارد شده پیدا نشد.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="card"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-md);">
+        <div class="text-muted" style="font-size: 0.9rem;">
+            نمایش صفحه <strong>{{ page }}</strong> از <strong>{{ total_pages }}</strong>
+        </div>
+        <div style="display: flex; gap: var(--sp-sm);">
+            {% if page > 1 %}
+            <a href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}"
+                class="btn btn-sm btn-secondary">
+                <i class="fas fa-chevron-right"></i>
+                قبلی
+            </a>
+            {% endif %}
+
+            {% if page < total_pages %} <a href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}"
+                class="btn btn-sm btn-secondary">
+                بعدی
+                <i class="fas fa-chevron-left"></i>
+                </a>
+                {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Gift Modal -->
+<div id="giftModal"
+    style="display: none; position: fixed; inset: 0; z-index: 100; align-items: center; justify-content: center; padding: var(--sp-lg);">
+    <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);"
+        onclick="closeModal('giftModal')"></div>
+    <div class="card"
+        style="width: 100%; max-width: 400px; position: relative; z-index: 101; animation: slideUp 0.3s ease;">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="fas fa-gift" style="color: var(--p-warning);"></i>
+                هدیه همگانی
+            </div>
+            <button onclick="closeModal('giftModal')" style="color: var(--p-text-muted); cursor: pointer;"><i
+                    class="fas fa-times"></i></button>
+        </div>
+
+        <form id="giftForm" onsubmit="giftAllUsers(event)">
+            <div class="form-group">
+                <label class="form-label">مبلغ هدیه (تومان)</label>
+                <input type="number" name="amount" class="form-control" required min="1000" placeholder="مثال: 50000">
+            </div>
+
+            <div style="display: flex; gap: var(--sp-md); margin-top: var(--sp-xl);">
+                <button type="button" class="btn btn-secondary" style="flex: 1;"
+                    onclick="closeModal('giftModal')">لغو</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">ارسال هدیه</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    @keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<script>
+    function handleSearchKeypress(event) {
+        if (event.key === 'Enter') {
+            performSearch();
+        }
+    }
+
+    function performSearch() {
+        const query = document.getElementById('searchInput').value;
+        window.location.href = `?search=${encodeURIComponent(query)}`;
+    }
+
+    function clearSearch() {
+        window.location.href = window.location.pathname;
+    }
+
+    function showGiftModal() {
+        document.getElementById('giftModal').style.display = 'flex';
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+    }
+
+    let giftConfirmationModal = null;
+
+    async function giftAllUsers(event) {
+        event.preventDefault();
+        const form = event.target;
+        const amount = parseInt(form.amount.value);
+        
+        if (!amount || amount <= 0) {
+            showToast('لطفاً مبلغ معتبری وارد کنید', 'error');
+            return;
+        }
+
+        // Show professional confirmation modal
+        showGiftConfirmationModal(amount);
+    }
+
+    function showGiftConfirmationModal(amount) {
+        // Create modal if it doesn't exist
+        if (!document.getElementById('giftConfirmationModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'giftConfirmationModal';
+            modal.className = 'modal-overlay';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="card" style="width: 100%; max-width: 450px; position: relative; z-index: 101; animation: slideUp 0.3s ease;">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fas fa-exclamation-triangle" style="color: var(--p-warning);"></i>
+                            تأیید ارسال هدیه همگانی
+                        </div>
+                        <button onclick="closeGiftConfirmationModal()" style="color: var(--p-text-muted); cursor: pointer;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div style="padding: var(--sp-lg);">
+                        <p style="font-size: 1rem; color: var(--p-text-main); margin-bottom: var(--sp-lg);">
+                            آیا از ارسال هدیه همگانی اطمینان دارید؟
+                        </p>
+                        <div style="background: var(--p-bg-hover); border-radius: var(--radius-md); padding: var(--sp-md); margin-bottom: var(--sp-lg);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: var(--sp-sm);">
+                                <span style="color: var(--p-text-muted);">💰 مبلغ هدیه:</span>
+                                <span style="font-weight: 700; color: var(--p-success);" id="giftAmountDisplay">0</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: var(--sp-sm);">
+                                <span style="color: var(--p-text-muted);">👥 تعداد کاربران:</span>
+                                <span style="font-weight: 700; color: var(--p-info);" id="giftUsersCount">-</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding-top: var(--sp-sm); border-top: 1px solid var(--border-color);">
+                                <span style="color: var(--p-text-muted);">💵 مجموع هزینه:</span>
+                                <span style="font-weight: 700; color: var(--p-warning);" id="giftTotalCost">0</span>
+                            </div>
+                        </div>
+                        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--p-warning); border-radius: var(--radius-md); padding: var(--sp-md); margin-bottom: var(--sp-lg);">
+                            <div style="font-size: 0.85rem; color: var(--p-warning); font-weight: 700; margin-bottom: var(--sp-xs);">
+                                <i class="fas fa-info-circle"></i> نکته مهم:
+                            </div>
+                            <ul style="margin: 0; padding-right: var(--sp-lg); font-size: 0.85rem; color: var(--p-text-main); line-height: 1.8;">
+                                <li>این عملیات برای تمام کاربران فعال انجام می‌شود</li>
+                                <li>نوتیفیکیشن به تمام کاربران ارسال خواهد شد</li>
+                                <li>این عملیات قابل بازگشت نیست</li>
+                            </ul>
+                        </div>
+                        <div style="display: flex; gap: var(--sp-md);">
+                            <button type="button" class="btn btn-secondary" onclick="closeGiftConfirmationModal()" style="flex: 1;">لغو</button>
+                            <button type="button" class="btn btn-warning" onclick="confirmGiftAll()" style="flex: 2; background: var(--p-warning); border-color: var(--p-warning); color: white;">
+                                <i class="fas fa-gift"></i> تأیید و ارسال
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Get user count - try to get from current page or estimate
+        let userCount = 0;
+        try {
+            // Try to get count from page data if available
+            const userCards = document.querySelectorAll('.user-card');
+            userCount = userCards.length || 0;
+            
+            // If we have cards, estimate total (this is approximate)
+            if (userCount > 0) {
+                // This is just an estimate, actual count will be shown after API call
+                document.getElementById('giftUsersCount').textContent = 'در حال محاسبه...';
+            }
+        } catch (e) {
+            // Ignore
+        }
+        
+        document.getElementById('giftAmountDisplay').textContent = amount.toLocaleString('fa-IR') + ' تومان';
+        document.getElementById('giftUsersCount').textContent = 'تمام کاربران فعال';
+        document.getElementById('giftTotalCost').textContent = 'محاسبه پس از تأیید';
+
+        document.getElementById('giftConfirmationModal').style.display = 'flex';
+        giftConfirmationModal = { amount: amount };
+    }
+
+    function closeGiftConfirmationModal() {
+        const modal = document.getElementById('giftConfirmationModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        giftConfirmationModal = null;
+    }
+
+    async function confirmGiftAll() {
+        if (!giftConfirmationModal) return;
+
+        const amount = giftConfirmationModal.amount;
+        const btn = document.querySelector('#giftConfirmationModal button[onclick="confirmGiftAll()"]');
+        const originalText = btn.innerHTML;
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> در حال ارسال...';
+        btn.disabled = true;
+
+        try {
+            const response = await apiCall('/api/admin/users/gift-all', {
+                method: 'POST',
+                body: JSON.stringify({ amount: amount })
+            });
+
+            showToast(`✅ هدیه با موفقیت به ${response.success_count} کاربر ارسال شد`, 'success');
+            closeGiftConfirmationModal();
+            document.getElementById('giftForm').reset();
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
+            showToast(error.message || 'خطا در ارسال هدیه', 'error');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}
